@@ -8,7 +8,7 @@ export default function AuthLayout({
   return (
     <section>
       <AuthNavbar />
-      <div className="">{children}</div>
+      <div className="max-w-7xl mx-auto">{children}</div>
     </section>
   );
 }
