@@ -1,8 +1,20 @@
 const express = require("express");
 require("dotenv").config();
-const cosrs = require("cors");
+const cors = require("cors");
+const mongoose = require("mongoose");
 
 const app = express();
+
+const port = process.env.PORT || 4000;
+
+mongoose
+  .connect(process.env.DB_URL)
+  .then(() => {
+    console.log("MongoDB connected");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+  });
 
 app.use(cors());
 app.use(express.json());
@@ -14,7 +26,6 @@ app.get("/", (req, res) => {
 app.use("/api/users", require("./router/user.router"));
 app.use("/api/donors", require("./router/donor.router"));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running at http://localhost:${port}`);
 });

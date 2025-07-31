@@ -18,9 +18,9 @@ const bloodRequestSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Quantity is required"],
     },
-    place: {
-      type: String,
-      required: [true, "Place is required"],
+    hospital: {
+      name: String,
+      address: String,
     },
     status: {
       type: String,

@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const bloodRequestSchema = require("./bloodRequest.schema");
 
 // Constants
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -56,6 +55,17 @@ const userSchema = new mongoose.Schema(
         message: "Please enter a valid phone number",
       },
     },
+
+    otp: [
+      {
+        code: { type: String },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+          expires: 300,
+        },
+      },
+    ],
 
     dateOfBirth: {
       type: Date,
@@ -199,7 +209,7 @@ const userSchema = new mongoose.Schema(
     donationHistory: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "BloodRequest",
+        ref: "Donate",
       },
     ],
 
@@ -310,11 +320,9 @@ userSchema.methods.checkEligibility = function () {
 
 // Method to update last donation
 userSchema.methods.updateLastDonation = async function (donationData) {
-  const donation = await bloodRequestSchema.create(donationData);
-  this.donationHistory.push(donation._id);
   this.lastDonationDate = {
     place: donationData.place,
-    date: donationData.fulfilledAt || new Date(),
+    date: donationData.date || new Date(),
     bloodGroup: donationData.bloodGroup || this.bloodGroup,
     verificationDocument: donationData.verificationDocument,
   };
