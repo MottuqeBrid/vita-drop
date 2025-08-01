@@ -235,6 +235,37 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    account: {
+      ban: {
+        type: Boolean,
+        default: false,
+      },
+      suspended: {
+        type: Boolean,
+        default: false,
+      },
+      deactivated: {
+        type: Boolean,
+        default: false,
+      },
+      reason: {
+        type: String,
+        trim: true,
+      },
+      deactivatedAt: {
+        type: Date,
+      },
+      suspendedAt: {
+        type: Date,
+      },
+      bannedAt: {
+        type: Date,
+      },
+      delete: {
+        type: Boolean,
+        default: false,
+      },
+    },
   },
   {
     timestamps: true,
