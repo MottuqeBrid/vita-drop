@@ -5,6 +5,13 @@ const router = express.Router();
 // create a new user
 router.post("/register", async (req, res) => {
   try {
+    const { email } = req.body;
+    const existingUser = await userSchema.findOne({ email });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ success: false, error: "User already exists" });
+    }
     const user = await userSchema.create(req.body);
     res.status(201).json({
       success: true,

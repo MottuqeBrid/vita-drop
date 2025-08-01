@@ -231,6 +231,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    termsConditions: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

@@ -25,6 +25,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/users", require("./router/user.router"));
 app.use("/api/donors", require("./router/donor.router"));
+app.use("/api", require("./router/upload"));
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
