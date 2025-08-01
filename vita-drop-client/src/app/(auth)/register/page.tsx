@@ -40,7 +40,7 @@ export default function RegisterPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
+    const apiKey = process.env.IMGBB_API_KEY;
 
     const formData = new FormData();
     formData.append("image", file);
