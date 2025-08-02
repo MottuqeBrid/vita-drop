@@ -4,10 +4,16 @@ import { useForm } from "react-hook-form";
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { MdVisibility, MdVisibilityOff } from "react-icons/md";
+import axiosSecure from "@/lib/axiosSecure";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
   type RegisterFormData = {
     fullName: string;
     email: string;
@@ -40,20 +46,23 @@ export default function RegisterPage() {
     console.log(newData);
     // Handle form submission logic here, e.g., send data to API
     try {
-      const response = await fetch("http://localhost:4000/api/users/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newData),
-      });
-      const result = await response.json();
-      console.log("Registration successful:", result);
-      // Redirect or show success message
-      // e.g., router.push("/login");
+      const result = await axiosSecure.post("/users/register", newData);
+      localStorage.setItem("accessToken", result.data?.accessToken);
+      if (result.data?.error) {
+        setServerError(result.data?.error);
+        return;
+      }
+      router.push("/");
     } catch (error) {
       console.error("Registration failed:", error);
-      // Handle error appropriately, e.g., show a notification
+      if (error instanceof Error) {
+        const errorResponse = error as {
+          response?: { data?: { error: string } };
+        };
+        setServerError(errorResponse?.response?.data?.error || error.message);
+      } else {
+        setServerError("An error occurred");
+      }
     }
   };
 
@@ -148,21 +157,28 @@ export default function RegisterPage() {
 
         {/* Password */}
         <div>
-          <label className="label" htmlFor="password">
+          <label htmlFor="password" className="label">
             Password
           </label>
-          <input
-            id="password"
-            type="password"
-            {...register("password", { required: "Password is required" })}
-            className="input input-bordered w-full"
-          />
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              {...register("password", { required: "Password is required" })}
+              className="input input-bordered w-full pr-10"
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute z-30 right-2 top-1/2 -translate-y-1/2 text-xl text-gray-400 hover:text-primary focus:outline-none"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <MdVisibilityOff /> : <MdVisibility />}
+            </button>
+          </div>
           {errors.password && (
-            <p className="text-red-500 text-sm">
-              {typeof errors.password?.message === "string"
-                ? errors.password.message
-                : null}
-            </p>
+            <p className="text-red-500 text-sm">{errors.password.message}</p>
           )}
         </div>
 
@@ -200,13 +216,13 @@ export default function RegisterPage() {
           >
             <option value="">Select</option>
             <option value="A+">A+</option>
-            <option value="A−">A−</option>
+            <option value="A-">A-</option>
             <option value="B+">B+</option>
-            <option value="B−">B−</option>
+            <option value="B-">B-</option>
             <option value="O+">O+</option>
-            <option value="O−">O−</option>
+            <option value="O-">O-</option>
             <option value="AB+">AB+</option>
-            <option value="AB−">AB−</option>
+            <option value="AB-">AB-</option>
           </select>
           {errors.bloodGroup && (
             <p className="text-red-500 text-sm">Blood group is required</p>
@@ -327,6 +343,9 @@ export default function RegisterPage() {
         <button type="submit" className="btn btn-primary w-full">
           Register
         </button>
+        {serverError && (
+          <p className="text-red-500 text-sm mt-2">{serverError}</p>
+        )}
       </form>
 
       <p className="text-center mt-4">

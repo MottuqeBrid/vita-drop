@@ -1,11 +1,21 @@
 const express = require("express");
 require("dotenv").config();
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
 
 const app = express();
 
 const port = process.env.PORT || 4000;
+
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "https://vita-drop.vercel.app"],
+    credentials: true,
+  })
+);
+app.use(cookieParser());
+app.use(express.json());
 
 mongoose
   .connect(process.env.DB_URL)
@@ -15,9 +25,6 @@ mongoose
   .catch((err) => {
     console.error("MongoDB connection error:", err);
   });
-
-app.use(cors());
-app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to the VitaDrop API" });
