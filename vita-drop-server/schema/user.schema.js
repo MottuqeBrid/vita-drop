@@ -273,7 +273,6 @@ const userSchema = new mongoose.Schema(
 );
 
 // Indexes for better query performance
-userSchema.index({ email: 1 });
 userSchema.index({ bloodGroup: 1, isAvailable: 1, isEligible: 1 });
 userSchema.index({ "location.city": 1, "location.state": 1 });
 userSchema.index({ role: 1 });
