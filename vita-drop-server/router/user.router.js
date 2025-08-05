@@ -113,6 +113,19 @@ router.post("/login", async (req, res) => {
   });
 });
 
+// user logout
+router.post("/logout", verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await tokenSchema.deleteOne({ userId });
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    res.status(200).json({ success: true, message: "Logout successful" });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
 // get user profile
 router.get("/profile", verifyToken, async (req, res) => {
   try {
@@ -142,11 +155,9 @@ router.get("/middleware", async (req, res) => {
           .status(403)
           .json({ success: false, message: "Failed to authenticate token" });
       }
-      console.log("Decoded JWT:", decoded);
       const user = await userSchema
         .findById(decoded.id)
         .select("role name email bloodGroup isAvailable isEligible account");
-      console.log("User from DB:", user);
       if (!user) {
         return res
           .status(404)
@@ -160,6 +171,45 @@ router.get("/middleware", async (req, res) => {
     });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+// refresh Token
+router.post("/refreshToken", async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) {
+    return res
+      .status(403)
+      .json({ success: false, message: "No refresh token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const user = await userSchema.findById(decoded.id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const newAccessToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "15m" }
+    );
+
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      maxAge: 15 * 60 * 1000, // 15 minutes expiration
+    });
+
+    res.status(200).json({
+      success: true,
+      accessToken: newAccessToken,
+      message: "Access token refreshed successfully",
+    });
+  } catch (error) {
+    res.status(403).json({ success: false, error: error.message });
   }
 });
 

@@ -2,8 +2,25 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // ✅ Skip API route & public pages
+  const publicPaths = [
+    "/",
+    "/login",
+    "/register",
+    "/about",
+    "/contact",
+    "/terms",
+  ];
+
   const refreshToken = request.cookies.get("refreshToken")?.value;
   const accessToken = request.cookies.get("accessToken")?.value;
+
+  // If it's a public path and user is NOT logged in → just allow
+  if (publicPaths.includes(pathname) && !refreshToken && !accessToken) {
+    return NextResponse.next();
+  }
 
   try {
     const response = await fetch(
@@ -12,50 +29,58 @@ export async function middleware(request: NextRequest) {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Cookie: `refreshToken=${refreshToken}; accessToken=${accessToken}`, // ✅ send both cookies
+          Cookie: `refreshToken=${refreshToken}; accessToken=${accessToken}`,
         },
       }
     );
 
     const data = await response.json();
-    if (data?.error) {
-      return NextResponse.redirect(new URL("/login", request.url)); // redirect to login page
-    } else {
-      const {
-        message,
-        user: {
-          _id,
-          email,
-          role,
+    console.log(data);
 
-          account: { ban, suspended, deactivated, delete: isDeleted },
-        },
-      } = data;
+    if (data?.error) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    if (data?.user) {
+      const {
+        role,
+        account: { ban, suspended, deactivated, delete: isDeleted },
+      } = data.user;
+
       if (ban || suspended || deactivated || isDeleted) {
-        return NextResponse.redirect(new URL("/login", request.url)); // redirect to login page
-      } else if (
+        if (ban) {
+          return NextResponse.redirect(new URL("/ban", request.url));
+        }
+        if (suspended) {
+          return NextResponse.redirect(new URL("/suspended", request.url));
+        }
+        if (deactivated) {
+          return NextResponse.redirect(new URL("/deactivated", request.url));
+        }
+        if (isDeleted) {
+          return NextResponse.redirect(new URL("/login", request.url));
+        }
+      }
+
+      // Example: role-based restriction
+      if (
         role === "donor" ||
         role === "admin" ||
         role === "hospital" ||
         role === "volunteer" ||
         role === "guest"
       ) {
-        return NextResponse.redirect(new URL("/", request.url)); // redirect to home page
-      } else if (suspended) {
-        return NextResponse.redirect(new URL("/suspended", request.url)); // redirect to suspended page
-      } else if (ban) {
-        return NextResponse.redirect(new URL("/register", request.url)); // redirect to register page
-      } else if (deactivated) {
-        return NextResponse.redirect(new URL("/deactivated", request.url)); // redirect to deactivated page
+        return NextResponse.next(); // ✅ allow
       }
     }
   } catch (error) {
     console.error("Error in middleware:", error);
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/", "/login", "/register", "/about", "/contact", "/terms"],
+  matcher: ["/", "/about", "/contact", "/dashboard/:path*"],
 };

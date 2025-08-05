@@ -1,14 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import ThemeToggle from "./Themetoggle";
 import Logo from "./Logo";
+import { fetchUser } from "@/lib/fetchUser";
+import { FaUserCircle } from "react-icons/fa";
+import Image from "next/image";
+import axiosSecure from "@/lib/axiosSecure";
+
+type UserType = {
+  user: {
+    fullName: string;
+    photo?: {
+      profilePhoto?: string;
+    };
+  };
+  error?: string;
+};
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [user, setUser] = useState<UserType | null>(null);
 
   const navItems = [
     { href: "/", label: "Home" },
@@ -16,10 +34,61 @@ export default function Navbar() {
     { href: "/donors", label: "Find Donors" },
   ];
 
+  useEffect(() => {
+    profile();
+  }, []);
+
+  // Close dropdown on outside click or Escape
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    }
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setDropdownOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [dropdownOpen]);
+
+  const profile = async () => {
+    const userData = await fetchUser("/users/profile");
+    if (!userData) return;
+    if (userData.error) {
+      console.log(userData.error);
+      return;
+    }
+    setUser(userData);
+  };
+
+  const handleLogout = async () => {
+    localStorage.removeItem("accessToken");
+    const res = await axiosSecure.post(
+      "/users/logout",
+      {},
+      { withCredentials: true }
+    );
+    console.log("Logout response:", res.data);
+    if (res.data.error) {
+      console.error("Logout failed:", res.data.error);
+      return;
+    }
+    router.push("/login");
+  };
+
   return (
-    <header className="sticky top-0 z-50 w-full bg-base-100/90 backdrop-blur-md border-b border-gray-300 dark:border-gray-700 shado">
+    <header className="sticky top-0 z-50 w-full bg-base-100/90 backdrop-blur-md border-b border-gray-300 dark:border-gray-700 shadow">
       <nav className="max-w-7xl mx-auto flex justify-between items-center p-4">
-        {/* Left: User Avatar */}
+        {/* Left: Logo */}
         <div className="flex items-center space-x-3">
           <Logo />
         </div>
@@ -41,28 +110,96 @@ export default function Navbar() {
         </ul>
 
         {/* Right: Theme + Auth */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 relative">
           <ThemeToggle />
 
-          {/* Auth buttons */}
-          <div className="hidden md:flex space-x-2">
-            <Link
-              href="/login"
-              className="btn btn-sm bg-primary text-white hover:bg-opacity-80"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="btn btn-sm btn-outline border-primary text-primary hover:bg-primary hover:text-white"
-            >
-              Register
-            </Link>
+          {/* Auth buttons / User Avatar */}
+          <div className="hidden md:flex items-center space-x-2">
+            {user ? (
+              <div className="relative">
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setDropdownOpen((v) => !v)}
+                    className="focus:outline-none focus:ring-2 focus:ring-primary/40 rounded-full transition-shadow"
+                    aria-haspopup="true"
+                    aria-expanded={dropdownOpen}
+                    aria-label="Open user menu"
+                  >
+                    {user.user.photo?.profilePhoto ? (
+                      <Image
+                        width={40}
+                        height={40}
+                        src={user.user.photo.profilePhoto}
+                        alt={user.user.fullName}
+                        className="w-8 h-8 rounded-full object-cover border bg-gray-100"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "/default-avatar.png";
+                        }}
+                      />
+                    ) : (
+                      <FaUserCircle className="w-8 h-8 text-gray-400 bg-gray-100 rounded-full" />
+                    )}
+                  </button>
+
+                  {/* Dropdown menu with fade/slide animation */}
+                  <div
+                    className={`absolute right-0 mt-2 w-44 bg-base-100 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md z-50 transition-all duration-200 origin-top-right
+                      ${
+                        dropdownOpen
+                          ? "opacity-100 scale-100 pointer-events-auto"
+                          : "opacity-0 scale-95 pointer-events-none"
+                      }
+                    `}
+                    tabIndex={-1}
+                  >
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 btn rounded-t-md transition-colors"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      href="/dashboard"
+                      className="block px-4 py-2 btn transition-colors"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 btn text-red-600 dark:text-red-400 rounded-b-md transition-colors"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="btn btn-sm bg-primary text-white hover:bg-opacity-80"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="btn btn-sm btn-outline border-primary text-primary hover:bg-primary hover:text-white"
+                >
+                  Register
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden "
+            className="md:hidden"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle Menu"
           >
@@ -113,20 +250,65 @@ export default function Navbar() {
           </ul>
 
           <div className="mt-4 flex flex-col space-y-2">
-            <Link
-              href="/login"
-              className="btn btn-sm bg-primary text-white w-full"
-              onClick={() => setMenuOpen(false)}
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="btn btn-sm btn-outline border-primary text-primary w-full"
-              onClick={() => setMenuOpen(false)}
-            >
-              Register
-            </Link>
+            {user ? (
+              <>
+                <div className="flex items-center space-x-2">
+                  {user.user.photo?.profilePhoto ? (
+                    <Image
+                      width={40}
+                      height={40}
+                      placeholder="blur"
+                      src={user.user.photo.profilePhoto}
+                      alt={user.user.fullName}
+                      className="w-8 h-8 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <FaUserCircle className="w-8 h-8 text-gray-500" />
+                  )}
+                  <p>{user.user.fullName}</p>
+                </div>
+                <Link
+                  href="/profile"
+                  className="btn btn-sm btn-outline w-full"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="btn btn-sm btn-outline w-full"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setMenuOpen(false);
+                  }}
+                  className="btn btn-sm bg-red-500 text-white w-full"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="btn btn-sm bg-primary text-white w-full"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="btn btn-sm btn-outline border-primary text-primary w-full"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Register
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

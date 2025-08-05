@@ -3,41 +3,21 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
+import Router from "next/router";
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL;
-console.log(baseURL);
 
-// 🔧 Custom config type to support _retry flag
+// ✅ Extended config to track retries
 interface CustomInternalAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-// 🔁 Queue item structure for failed requests
+// ✅ Queue for waiting requests while refreshing
 interface FailedRequest {
   resolve: (token: string) => void;
   reject: (error: AxiosError) => void;
 }
 
-const axiosSecure = axios.create({
-  baseURL,
-  withCredentials: true, // Cookie পাঠানোর জন্য (refresh token)
-});
-
-// 🔐 Request interceptor → Add access token to header
-axiosSecure.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("accessToken");
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error: AxiosError) => Promise.reject(error)
-);
-
-// 🔁 Response interceptor → Auto-refresh token if access token expires
 let isRefreshing = false;
 let failedQueue: FailedRequest[] = [];
 
@@ -52,19 +32,42 @@ const processQueue = (error: AxiosError | null, token: string | null) => {
   failedQueue = [];
 };
 
+const axiosSecure = axios.create({
+  baseURL,
+  withCredentials: true, // Needed for cookies
+});
+
+// 🔹 Request Interceptor → Attach access token
+axiosSecure.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("accessToken");
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error: AxiosError) => Promise.reject(error)
+);
+
+// 🔹 Response Interceptor → Handle token refresh
 axiosSecure.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
+    if (!error.config) return Promise.reject(error);
     const originalRequest = error.config as CustomInternalAxiosRequestConfig;
 
+    // Handle only 401 (Unauthorized) or 403 (Forbidden)
     if (
-      error.response?.status === 401 &&
+      (error.response?.status === 401 || error.response?.status === 403) &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes("/users/login") &&
-      !originalRequest.url?.includes("/refresh")
+      !originalRequest.url?.includes("/login") &&
+      !originalRequest.url?.includes("/refreshToken")
     ) {
       originalRequest._retry = true;
 
+      // Wait if refresh already happening
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -81,20 +84,20 @@ axiosSecure.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        // ✅ Call backend refresh endpoint
         const res = await axios.post<{ accessToken: string }>(
-          `${baseURL}/refresh`,
+          `${baseURL}/users/refreshToken`,
           {},
           { withCredentials: true }
         );
 
         const newToken = res.data.accessToken;
+
         if (typeof window !== "undefined") {
           localStorage.setItem("accessToken", newToken);
         }
 
-        axiosSecure.defaults.headers.common[
-          "Authorization"
-        ] = `Bearer ${newToken}`;
+        axiosSecure.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         processQueue(null, newToken);
 
         if (originalRequest.headers) {
@@ -102,12 +105,14 @@ axiosSecure.interceptors.response.use(
         }
 
         return axiosSecure(originalRequest);
-      } catch (err: unknown) {
+      } catch (err) {
         processQueue(err as AxiosError, null);
+
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
-          window.location.href = "/login"; // redirect if refresh failed
+          Router.push("/login");
         }
+
         return Promise.reject(err);
       } finally {
         isRefreshing = false;

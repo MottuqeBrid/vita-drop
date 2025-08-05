@@ -8,11 +8,21 @@ const verifyToken = (req, res, next) => {
       .status(401)
       .json({ success: false, message: "No token provided" });
   }
+  // Remove "Bearer " prefix if present
+  const tokenWithoutBearer = token.startsWith("Bearer ")
+    ? token.slice(7)
+    : token;
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+  if (!tokenWithoutBearer) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Invalid token format" });
+  }
+
+  jwt.verify(tokenWithoutBearer, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
       return res
-        .status(403)
+        .status(401)
         .json({ success: false, message: "Failed to authenticate token" });
     }
     req.user = decoded; // Save the decoded user info to request object
