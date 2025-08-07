@@ -10,8 +10,8 @@ export default function Page() {
       <HeroSection />
       <Statistics />
       <AboutUs />
+      <NewsAndUpdates />
       <NewsLater />
-      {/* <NewsAndUpdates /> */}
     </div>
   );
 }

@@ -31,6 +31,7 @@ export default function Navbar() {
   const navItems = [
     { href: "/", label: "Home" },
     { href: "/about", label: "About" },
+    { href: "/blog", label: "Blog" },
     { href: "/donors", label: "Find Donors" },
   ];
 
@@ -170,13 +171,6 @@ export default function Navbar() {
                         tabIndex={-1}
                       >
                         <Link
-                          href="/profile"
-                          className="block px-4 py-2 btn rounded-t-md transition-colors"
-                          onClick={() => setDropdownOpen(false)}
-                        >
-                          Profile
-                        </Link>
-                        <Link
                           href="/dashboard"
                           className="block px-4 py-2 btn transition-colors"
                           onClick={() => setDropdownOpen(false)}
@@ -301,13 +295,6 @@ export default function Navbar() {
                       {user.user.fullName}
                     </span>
                   </div>
-                  <Link
-                    href="/profile"
-                    className="btn btn-sm btn-outline w-full"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Profile
-                  </Link>
                   <Link
                     href="/dashboard"
                     className="btn btn-sm btn-outline w-full"

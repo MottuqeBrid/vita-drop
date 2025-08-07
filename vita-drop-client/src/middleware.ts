@@ -12,6 +12,8 @@ export async function middleware(request: NextRequest) {
     "/about",
     "/contact",
     "/terms",
+    "/donors",
+    "/blog",
   ];
 
   const refreshToken = request.cookies.get("refreshToken")?.value;
@@ -20,6 +22,10 @@ export async function middleware(request: NextRequest) {
   // If it's a public path and user is NOT logged in → just allow
   if (publicPaths.includes(pathname) && !refreshToken && !accessToken) {
     return NextResponse.next();
+  }
+  // If it's a public path and user is NOT logged in → just allow
+  if (!publicPaths.includes(pathname) && !refreshToken && !accessToken) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   try {
@@ -82,5 +88,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/about", "/contact", "/dashboard/:path*"],
+  matcher: [
+    "/",
+    "/about",
+    "/contact",
+    "/dashboard/:path*",
+    "/login",
+    "/register",
+    "/blog",
+    "/donors",
+  ],
 };
