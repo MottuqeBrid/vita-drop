@@ -3,7 +3,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
-import Router from "next/router";
+// import Router from "next/router";
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -110,7 +110,8 @@ axiosSecure.interceptors.response.use(
 
         if (typeof window !== "undefined") {
           localStorage.removeItem("accessToken");
-          Router.push("/login");
+          // Router.push("/login");
+          window.location.href = "/login";
         }
 
         return Promise.reject(err);
@@ -122,5 +123,4 @@ axiosSecure.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
 export default axiosSecure;

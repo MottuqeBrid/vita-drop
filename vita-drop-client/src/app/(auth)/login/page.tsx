@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { MdVisibility, MdVisibilityOff } from "react-icons/md";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import axiosSecure from "@/lib/axiosSecure";
 import { useRouter } from "next/navigation";
@@ -49,13 +50,19 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-6 text-secondary">
-        Login
-      </h1>
+      <h1 className="text-3xl font-bold text-center mb-6">Login</h1>
 
-      <form
+      <motion.form
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-6 bg-base-100 p-6 rounded-xl shadow-lg"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.5,
+          type: "spring",
+          stiffness: 80,
+          damping: 18,
+        }}
       >
         {/* Email */}
         <div>
@@ -115,7 +122,7 @@ export default function LoginPage() {
             Register
           </Link>
         </p>
-      </form>
+      </motion.form>
     </div>
   );
 }

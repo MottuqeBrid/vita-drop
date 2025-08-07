@@ -2,6 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { MdVisibility, MdVisibilityOff } from "react-icons/md";
@@ -43,7 +44,6 @@ export default function RegisterPage() {
     if (photoPreview) {
       newData.photo = { profilePhoto: photoPreview };
     }
-    console.log(newData);
     // Handle form submission logic here, e.g., send data to API
     try {
       const result = await axiosSecure.post("/users/register", newData);
@@ -106,13 +106,21 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-6 text-secondary">
+      <h1 className="text-3xl font-bold text-center mb-6">
         Register
       </h1>
 
-      <form
+      <motion.form
         onSubmit={handleSubmit(onSubmit)}
         className="space-y-6 bg-base-100 p-6 rounded-xl shadow-lg"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          duration: 0.5,
+          type: "spring",
+          stiffness: 80,
+          damping: 18,
+        }}
       >
         {/* Full Name */}
         <div>
@@ -309,18 +317,31 @@ export default function RegisterPage() {
         </div>
 
         {/* Profile Preview */}
-        {photoPreview && (
-          <div className="text-center mt-2">
-            <p className="text-sm text-gray-500 mb-2">Profile Preview:</p>
-            <Image
-              width={96}
-              height={96}
-              src={photoPreview}
-              alt="Profile Preview"
-              className="w-24 h-24 object-cover rounded-full mx-auto border-2 border-primary shadow-md"
-            />
-          </div>
-        )}
+        <AnimatePresence>
+          {photoPreview && (
+            <motion.div
+              className="text-center mt-2"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{
+                duration: 0.3,
+                type: "spring",
+                stiffness: 120,
+                damping: 16,
+              }}
+            >
+              <p className="text-sm text-gray-500 mb-2">Profile Preview:</p>
+              <Image
+                width={96}
+                height={96}
+                src={photoPreview}
+                alt="Profile Preview"
+                className="w-24 h-24 object-cover rounded-full mx-auto border-2 border-primary shadow-md"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Terms and Conditions */}
         <div className="flex items-center gap-2 mt-4">
@@ -346,7 +367,7 @@ export default function RegisterPage() {
         {serverError && (
           <p className="text-red-500 text-sm mt-2">{serverError}</p>
         )}
-      </form>
+      </motion.form>
 
       <p className="text-center mt-4">
         Already have an account?{" "}

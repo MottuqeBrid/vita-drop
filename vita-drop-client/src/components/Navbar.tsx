@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import ThemeToggle from "./Themetoggle";
 import Logo from "./Logo";
-import { fetchUser } from "@/lib/fetchUser";
 import { FaUserCircle } from "react-icons/fa";
 import Image from "next/image";
 import axiosSecure from "@/lib/axiosSecure";
@@ -61,13 +61,15 @@ export default function Navbar() {
   }, [dropdownOpen]);
 
   const profile = async () => {
-    const userData = await fetchUser("/users/profile");
-    if (!userData) return;
-    if (userData.error) {
-      console.log(userData.error);
+    if (!localStorage.getItem("accessToken")) return;
+    const res = await axiosSecure.get("/users/profile");
+
+    if (!res.data) return;
+    if (!res.data.success) {
+      console.log(res.data.message);
       return;
     }
-    setUser(userData);
+    setUser(res.data);
   };
 
   const handleLogout = async () => {
@@ -77,6 +79,7 @@ export default function Navbar() {
       {},
       { withCredentials: true }
     );
+    localStorage.removeItem("accessToken");
     console.log("Logout response:", res.data);
     if (res.data.error) {
       console.error("Logout failed:", res.data.error);
@@ -125,58 +128,73 @@ export default function Navbar() {
                     aria-expanded={dropdownOpen}
                     aria-label="Open user menu"
                   >
-                    {user.user.photo?.profilePhoto ? (
-                      <Image
-                        width={40}
-                        height={40}
-                        src={user.user.photo.profilePhoto}
-                        alt={user.user.fullName}
-                        className="w-8 h-8 rounded-full object-cover border bg-gray-100"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "/default-avatar.png";
-                        }}
-                      />
-                    ) : (
-                      <FaUserCircle className="w-8 h-8 text-gray-400 bg-gray-100 rounded-full" />
-                    )}
+                    <div className="flex items-center gap-2">
+                      {user?.user?.photo?.profilePhoto ? (
+                        <Image
+                          width={40}
+                          height={40}
+                          src={user.user.photo.profilePhoto}
+                          alt={user.user.fullName}
+                          className="w-8 h-8 rounded-full object-cover border bg-gray-100"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src =
+                              "/default-avatar.png";
+                          }}
+                        />
+                      ) : (
+                        <FaUserCircle className="w-8 h-8 text-gray-400 bg-gray-100 rounded-full" />
+                      )}
+                      <span
+                        className="hidden lg:inline-block font-medium l max-w-[120px] truncate"
+                        title={user.user.fullName}
+                      >
+                        {user.user.fullName}
+                      </span>
+                    </div>
                   </button>
 
-                  {/* Dropdown menu with fade/slide animation */}
-                  <div
-                    className={`absolute right-0 mt-2 w-44 bg-base-100 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md z-50 transition-all duration-200 origin-top-right
-                      ${
-                        dropdownOpen
-                          ? "opacity-100 scale-100 pointer-events-auto"
-                          : "opacity-0 scale-95 pointer-events-none"
-                      }
-                    `}
-                    tabIndex={-1}
-                  >
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 btn rounded-t-md transition-colors"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      Profile
-                    </Link>
-                    <Link
-                      href="/dashboard"
-                      className="block px-4 py-2 btn transition-colors"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setDropdownOpen(false);
-                      }}
-                      className="w-full text-left px-4 py-2 btn text-red-600 dark:text-red-400 rounded-b-md transition-colors"
-                    >
-                      Logout
-                    </button>
-                  </div>
+                  {/* Dropdown menu with framer-motion animation */}
+                  <AnimatePresence>
+                    {dropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                        transition={{
+                          duration: 0.18,
+                          type: "spring",
+                          stiffness: 300,
+                          damping: 25,
+                        }}
+                        className="absolute right-0 mt-2 w-52 bg-base-100 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md z-50 origin-top-right"
+                        tabIndex={-1}
+                      >
+                        <Link
+                          href="/profile"
+                          className="block px-4 py-2 btn rounded-t-md transition-colors"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          Profile
+                        </Link>
+                        <Link
+                          href="/dashboard"
+                          className="block px-4 py-2 btn transition-colors"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          Dashboard
+                        </Link>
+                        <button
+                          onClick={() => {
+                            handleLogout();
+                            setDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 btn text-red-600 dark:text-red-400 rounded-b-md transition-colors"
+                        >
+                          Logout
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             ) : (
@@ -231,87 +249,104 @@ export default function Navbar() {
       </nav>
 
       {/* Mobile Menu */}
-      {menuOpen && (
-        <div className="md:hidden bg-base-100 border-t border-base-100 px-4 pb-4">
-          <ul className="flex flex-col space-y-3 mt-3">
-            {navItems.map(({ href, label }) => (
-              <li key={href}>
-                <Link
-                  href={href}
-                  className={`block py-2 px-2 rounded hover:text-primary ${
-                    pathname === href ? "text-primary active" : ""
-                  }`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{
+              duration: 0.22,
+              type: "spring",
+              stiffness: 260,
+              damping: 22,
+            }}
+            className="md:hidden bg-base-100 border-t border-base-100 px-4 pb-4"
+          >
+            <ul className="flex flex-col space-y-3 mt-3">
+              {navItems.map(({ href, label }) => (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    className={`block py-2 px-2 rounded hover:text-primary ${
+                      pathname === href ? "text-primary active" : ""
+                    }`}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
 
-          <div className="mt-4 flex flex-col space-y-2">
-            {user ? (
-              <>
-                <div className="flex items-center space-x-2">
-                  {user.user.photo?.profilePhoto ? (
-                    <Image
-                      width={40}
-                      height={40}
-                      placeholder="blur"
-                      src={user.user.photo.profilePhoto}
-                      alt={user.user.fullName}
-                      className="w-8 h-8 rounded-full object-cover border"
-                    />
-                  ) : (
-                    <FaUserCircle className="w-8 h-8 text-gray-500" />
-                  )}
-                  <p>{user.user.fullName}</p>
-                </div>
-                <Link
-                  href="/profile"
-                  className="btn btn-sm btn-outline w-full"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Profile
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="btn btn-sm btn-outline w-full"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Dashboard
-                </Link>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setMenuOpen(false);
-                  }}
-                  className="btn btn-sm bg-red-500 text-white w-full"
-                >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="btn btn-sm bg-primary text-white w-full"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  className="btn btn-sm btn-outline border-primary text-primary w-full"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Register
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+            <div className="mt-4 flex flex-col space-y-2">
+              {user ? (
+                <>
+                  <div className="flex items-center space-x-2">
+                    {user.user.photo?.profilePhoto ? (
+                      <Image
+                        width={40}
+                        height={40}
+                        src={user.user.photo.profilePhoto}
+                        alt={user.user.fullName}
+                        className="w-8 h-8 rounded-full object-cover border"
+                      />
+                    ) : (
+                      <FaUserCircle className="w-8 h-8 text-gray-500" />
+                    )}
+                    <span
+                      className="font-medium  max-w-[120px] truncate"
+                      title={user.user.fullName}
+                    >
+                      {user.user.fullName}
+                    </span>
+                  </div>
+                  <Link
+                    href="/profile"
+                    className="btn btn-sm btn-outline w-full"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    className="btn btn-sm btn-outline w-full"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setMenuOpen(false);
+                    }}
+                    className="btn btn-sm bg-red-500 text-white w-full"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="btn btn-sm bg-primary text-white w-full"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="btn btn-sm btn-outline border-primary text-primary w-full"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
