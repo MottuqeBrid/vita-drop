@@ -85,7 +85,7 @@ export default function RegisterPage() {
     const formData = new FormData();
     formData.append("image", file);
     try {
-      const res = await fetch("http://localhost:4000/api/upload", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -106,9 +106,7 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-6">
-        Register
-      </h1>
+      <h1 className="text-3xl font-bold text-center mb-6">Register</h1>
 
       <motion.form
         onSubmit={handleSubmit(onSubmit)}

@@ -131,7 +131,7 @@ router.get("/profile", verifyToken, async (req, res) => {
   try {
     const user = await userSchema
       .findById(req.user.id)
-      .select("-password -__v -account -createdAt -updatedAt -otp -isActive");
+      .select("-password -__v -otp -isActive");
     res.status(200).json({ success: true, user });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
@@ -210,6 +210,40 @@ router.post("/refreshToken", async (req, res) => {
     });
   } catch (error) {
     res.status(403).json({ success: false, error: error.message });
+  }
+});
+
+// get user by id
+router.get("/profile/:id", verifyToken, async (req, res) => {
+  try {
+    const user = await userSchema
+      .findById(req.params.id)
+      .select("-password -__v -otp -isActive");
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+// update user profile
+router.put("/profile/:id", verifyToken, async (req, res) => {
+  try {
+    const user = await userSchema.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
   }
 });
 

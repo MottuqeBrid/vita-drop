@@ -6,9 +6,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <section className="min-h-screen flex flex-col justify-between bg-base-100">
+    <section className="min-h-screen bg-base-100">
       <DashboardNavbar />
-      <div className="">{children}</div>
+      <div className="-z-10">{children}</div>
     </section>
   );
 }
