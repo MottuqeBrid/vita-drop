@@ -1,12 +1,12 @@
 import EditUserForm from "@/app/(dashboard)/_components/EditUserForm";
 import Link from "next/link";
 import { FiArrowLeft, FiEdit } from "react-icons/fi";
-
-export default async function EditProfilePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+interface ProfilePageProps {
+  params: {
+    id: string;
+  };
+}
+export default async function EditProfilePage({ params }: ProfilePageProps) {
   const { id } = params;
   return (
     <div className="mx-auto max-w-5xl px-4 md:px-6 py-6">
