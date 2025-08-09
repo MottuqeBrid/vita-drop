@@ -1,17 +1,37 @@
 import EditUserForm from "@/app/(dashboard)/_components/EditUserForm";
+import Link from "next/link";
+import { FiArrowLeft, FiEdit } from "react-icons/fi";
 
 export default async function EditProfilePage({
   params,
 }: {
   params: { id: string };
 }) {
-  const { id } = await params;
+  const { id } = params;
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] py-8 px-2">
-      <h1 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100">
-        Edit Profile
-      </h1>
-      <div className="w-full max-w-md">
+    <div className="mx-auto max-w-5xl px-4 md:px-6 py-6">
+      {/* Breadcrumb / Back */}
+      <div className="flex items-center gap-2 mb-4">
+        <Link href="/dashboard/profile" className="btn btn-ghost btn-sm">
+          <FiArrowLeft className="me-1" /> Back to Profile
+        </Link>
+      </div>
+
+      {/* Page header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <FiEdit />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold leading-tight">Edit Profile</h1>
+          <p className="text-sm opacity-70">
+            Update your personal and donation information
+          </p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <div className="grid grid-cols-1">
         <EditUserForm id={id} />
       </div>
     </div>

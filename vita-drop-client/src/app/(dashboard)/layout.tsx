@@ -8,7 +8,7 @@ export default function DashboardLayout({
   return (
     <section className="min-h-screen bg-base-100">
       <DashboardNavbar />
-      <div className="-z-10">{children}</div>
+      <div className="-z-10 max-w-7xl mx-auto">{children}</div>
     </section>
   );
 }

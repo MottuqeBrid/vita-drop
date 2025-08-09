@@ -4,30 +4,93 @@ import axiosSecure from "@/lib/axiosSecure";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { FiUser, FiMapPin, FiDroplet, FiShield, FiImage } from "react-icons/fi";
+
+// Demo data for dropdowns
+const demoDistricts = ["Dhaka", "Chattogram", "Khulna"];
+const demoUpozillas = ["Savar", "Patiya", "Dumuria"];
+const demoUnions = ["Union 1", "Union 2", "Union 3"];
 
 interface EditUserFormProps {
   id: string;
 }
 
+type BloodGroup = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+
+type FormValues = {
+  fullName: string;
+  email: string;
+  phone?: string;
+  dateOfBirth?: string; // yyyy-MM-dd
+  gender?: "male" | "female" | "other" | "";
+  weight?: number;
+  bloodGroup?: BloodGroup | "";
+  willingToDonate?: boolean | string;
+  isAvailable?: boolean | string;
+  location?: {
+    presentAddress?: {
+      country?: string;
+      district?: string;
+      upozilla?: string;
+      union?: string;
+      street?: string;
+      houseNumber?: string;
+      postalCode?: string;
+    };
+    permanentAddress?: {
+      country?: string;
+      district?: string;
+      upozilla?: string;
+      union?: string;
+      street?: string;
+      houseNumber?: string;
+      postalCode?: string;
+    };
+  };
+  photo?: {
+    profilePhoto?: string;
+    coverPhoto?: string;
+  };
+  emergencyContact?: {
+    name?: string;
+    phone?: string;
+    relationship?: string;
+  };
+  lastDonationDate?: {
+    place?: string;
+    date?: string; // yyyy-MM-dd
+    // bloodGroup?: BloodGroup;
+    verificationDocument?: string;
+  };
+  role?: string;
+};
+
+type ApiUser = FormValues & {
+  nextDonationDate?: string | Date;
+  isEligible?: boolean;
+  numberOfDonations?: number;
+};
+
 export default function EditUserForm({ id }: EditUserFormProps) {
   const [loading, setLoading] = useState(true);
+  const [sameAddress, setSameAddress] = useState(false);
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm();
+    watch,
+    setValue,
+  } = useForm<FormValues>();
 
-  // Fetch user data
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const res = await axiosSecure.get(`/users/profile/${id}`);
-        console.log("Fetched user data:", res.data);
         if (res.data?.user) {
-          reset(res.data.user); // Prefill form with user data
+          reset(res.data.user as ApiUser);
         }
       } catch (error) {
         console.error("Error fetching user:", error);
@@ -39,11 +102,37 @@ export default function EditUserForm({ id }: EditUserFormProps) {
     fetchUser();
   }, [id, reset]);
 
-  // Submit updated data
-  const onSubmit = async (data: any) => {
+  // Sync permanent address with present address if checkbox is checked
+  const present = watch("location.presentAddress");
+  useEffect(() => {
+    if (sameAddress && present) {
+      for (const key of [
+        "country",
+        "district",
+        "upozilla",
+        "union",
+        "street",
+        "houseNumber",
+        "postalCode",
+      ]) {
+        setValue(`location.permanentAddress.${key}`, present[key] || "");
+      }
+    }
+  }, [sameAddress, present, setValue]);
+
+  const onSubmit = async (data: FormValues) => {
     try {
-      const res = await axiosSecure.put(`/users/profile/${id}`, data);
-      console.log("Update response:", res.data);
+      const payload = {
+        ...data,
+        willingToDonate:
+          typeof data.willingToDonate === "string"
+            ? data.willingToDonate === "true"
+              ? true
+              : false
+            : !!data.willingToDonate,
+      };
+      console.log("Submitting data:", payload);
+      const res = await axiosSecure.put(`/users/profile/${id}`, payload);
       if (res.data?.success) {
         Swal.fire("Success", "Profile updated successfully", "success");
       } else {
@@ -51,7 +140,7 @@ export default function EditUserForm({ id }: EditUserFormProps) {
       }
     } catch (error) {
       console.error("Update error:", error);
-      Swal.fire("Error", "Something went wrong", "error");
+      Swal.fire("Error", error.message || "Something went wrong", "error");
     }
   };
 
@@ -65,234 +154,446 @@ export default function EditUserForm({ id }: EditUserFormProps) {
 
   return (
     <motion.div
-      className="max-w-lg mx-auto rounded-xl shadow-lg p-6"
+      className="card bg-base-100 shadow-xl border"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <h2 className="text-2xl font-bold mb-4">Edit Profile</h2>
+      <div className="card-body">
+        <h2 className="card-title">Edit Profile</h2>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Personal Info */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm opacity-70">
+              <FiUser />
+              <span>Personal</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Full Name</span>
+                </label>
+                <input
+                  type="text"
+                  {...register("fullName", {
+                    required: "Full name is required",
+                  })}
+                  className="input input-bordered w-full"
+                />
+                {errors.fullName && (
+                  <span className="label-text-alt text-error">
+                    {String(errors.fullName.message)}
+                  </span>
+                )}
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Email</span>
+                </label>
+                <input
+                  type="email"
+                  readOnly
+                  {...register("email", { required: "Email is required" })}
+                  className="input input-bordered w-full"
+                />
+                {errors.email && (
+                  <span className="label-text-alt text-error">
+                    {String(errors.email.message)}
+                  </span>
+                )}
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Phone</span>
+                </label>
+                <input
+                  type="text"
+                  {...register("phone")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Date of Birth</span>
+                </label>
+                <input
+                  type="date"
+                  {...register("dateOfBirth")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Gender</span>
+                </label>
+                <select
+                  {...register("gender")}
+                  className="select select-bordered w-full"
+                >
+                  <option value="">Select</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Weight (kg)</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  {...register("weight")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+            </div>
+          </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Personal Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 font-medium">Full Name</label>
-            <input
-              type="text"
-              {...register("fullName", { required: "Full name is required" })}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-            {errors.fullName && (
-              <p className="text-red-500 text-sm">
-                {String(errors.fullName.message)}
-              </p>
-            )}
+          {/* Donation Preferences */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm opacity-70">
+              <FiDroplet />
+              <span>Donation preferences</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Blood Group</span>
+                </label>
+                <input
+                  readOnly
+                  {...register("bloodGroup")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Willing to Donate?</span>
+                </label>
+                <select
+                  {...register("willingToDonate")}
+                  className="select select-bordered w-full"
+                >
+                  <option value="false">No</option>
+                  <option value="true">Yes</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block mb-1 font-medium">Email</label>
-            <input
-              type="email"
-              {...register("email", { required: "Email is required" })}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-            {errors.email && (
-              <p className="text-red-500 text-sm">
-                {String(errors.email.message)}
-              </p>
-            )}
+
+          {/* Location Info */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm opacity-70">
+              <FiMapPin />
+              <span>Location</span>
+            </div>
+            {/* Checkbox for same address */}
+            <div className="form-control mb-2">
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={sameAddress}
+                  onChange={(e) => setSameAddress(e.target.checked)}
+                />
+                <span className="label-text">
+                  Present and Permanent Address are the same
+                </span>
+              </label>
+            </div>
+            {/* Present Address */}
+            <div className="rounded-lg border p-4">
+              <h4 className="font-medium mb-3">Present Address</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">Country</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Bangladesh"
+                    {...register("location.presentAddress.country")}
+                    className="input input-bordered w-full"
+                  />
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">District</span>
+                  </label>
+                  <select
+                    {...register("location.presentAddress.district")}
+                    className="select select-bordered w-full"
+                  >
+                    <option value="">Select</option>
+                    {demoDistricts.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">Upozilla</span>
+                  </label>
+                  <select
+                    {...register("location.presentAddress.upozilla")}
+                    className="select select-bordered w-full"
+                  >
+                    <option value="">Select</option>
+                    {demoUpozillas.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">Union</span>
+                  </label>
+                  <select
+                    {...register("location.presentAddress.union")}
+                    className="select select-bordered w-full"
+                  >
+                    <option value="">Select</option>
+                    {demoUnions.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-control md:col-span-2">
+                  <label className="label">
+                    <span className="label-text">Street</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...register("location.presentAddress.street")}
+                    className="input input-bordered w-full"
+                  />
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">House No.</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...register("location.presentAddress.houseNumber")}
+                    className="input input-bordered w-full"
+                  />
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">Postal Code</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...register("location.presentAddress.postalCode")}
+                    className="input input-bordered w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Permanent Address */}
+            <div className="rounded-lg border p-4">
+              <h4 className="font-medium mb-3">Permanent Address</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">Country</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Bangladesh"
+                    {...register("location.permanentAddress.country")}
+                    className="input input-bordered w-full"
+                    disabled={sameAddress}
+                  />
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">District</span>
+                  </label>
+                  <select
+                    {...register("location.permanentAddress.district")}
+                    className="select select-bordered w-full"
+                    disabled={sameAddress}
+                  >
+                    <option value="">Select</option>
+                    {demoDistricts.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">Upozilla</span>
+                  </label>
+                  <select
+                    {...register("location.permanentAddress.upozilla")}
+                    className="select select-bordered w-full"
+                    disabled={sameAddress}
+                  >
+                    <option value="">Select</option>
+                    {demoUpozillas.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">Union</span>
+                  </label>
+                  <select
+                    {...register("location.permanentAddress.union")}
+                    className="select select-bordered w-full"
+                    disabled={sameAddress}
+                  >
+                    <option value="">Select</option>
+                    {demoUnions.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-control md:col-span-2">
+                  <label className="label">
+                    <span className="label-text">Street</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...register("location.permanentAddress.street")}
+                    className="input input-bordered w-full"
+                    disabled={sameAddress}
+                  />
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">House No.</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...register("location.permanentAddress.houseNumber")}
+                    className="input input-bordered w-full"
+                    disabled={sameAddress}
+                  />
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
+                    <span className="label-text">Postal Code</span>
+                  </label>
+                  <input
+                    type="text"
+                    {...register("location.permanentAddress.postalCode")}
+                    className="input input-bordered w-full"
+                    disabled={sameAddress}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block mb-1 font-medium">Phone</label>
-            <input
-              type="text"
-              {...register("phone")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
+
+          {/* Emergency Contact */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm opacity-70">
+              <FiShield />
+              <span>Emergency Contact</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Emergency Name</span>
+                </label>
+                <input
+                  type="text"
+                  {...register("emergencyContact.name")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Emergency Phone</span>
+                </label>
+                <input
+                  type="text"
+                  {...register("emergencyContact.phone")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Relationship</span>
+                </label>
+                <input
+                  type="text"
+                  {...register("emergencyContact.relationship")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block mb-1 font-medium">Date of Birth</label>
-            <input
-              type="date"
-              {...register("dateOfBirth")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
+
+          {/* Donation Info */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-sm opacity-70">
+              <FiDroplet />
+              <span>Donation Info</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Last Donation Place</span>
+                </label>
+                <input
+                  type="text"
+                  {...register("lastDonationDate.place")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Last Donation Date</span>
+                </label>
+                <input
+                  type="date"
+                  {...register("lastDonationDate.date")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+              <div className="form-control md:col-span-2">
+                <label className="label">
+                  <span className="label-text">Verification Document</span>
+                </label>
+                <input
+                  type="text"
+                  {...register("lastDonationDate.verificationDocument")}
+                  className="input input-bordered w-full"
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block mb-1 font-medium">Gender</label>
-            <select
-              {...register("gender")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
+
+          {/* Submit Button */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn btn-primary w-full"
             >
-              <option value="">Select</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
+              {isSubmitting ? "Updating..." : "Update Profile"}
+            </button>
           </div>
-          <div>
-            <label className="block mb-1 font-medium">Weight (kg)</label>
-            <input
-              type="number"
-              step="0.1"
-              {...register("weight")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-        </div>
-
-        {/* Medical Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 font-medium">Blood Group</label>
-            <select
-              {...register("bloodGroup")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            >
-              <option value="">Select</option>
-              <option value="A+">A+</option>
-              <option value="A-">A-</option>
-              <option value="B+">B+</option>
-              <option value="B-">B-</option>
-              <option value="O+">O+</option>
-              <option value="O-">O-</option>
-              <option value="AB+">AB+</option>
-              <option value="AB-">AB-</option>
-            </select>
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Willing to Donate?</label>
-            <select
-              {...register("willingToDonate")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            >
-              <option value="false">No</option>
-              <option value="true">Yes</option>
-            </select>
-          </div>
-          {/* <div>
-            <label className="block mb-1 font-medium">
-              Available for Donation?
-            </label>
-            <select
-              {...register("isAvailable")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            >
-              <option value="false">No</option>
-              <option value="true">Yes</option>
-            </select>
-          </div> */}
-        </div>
-
-        {/* Location Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 font-medium">Present Address</label>
-            <input
-              type="text"
-              {...register("location.presentAddress")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Permanent Address</label>
-            <input
-              type="text"
-              {...register("location.permanentAddress")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">City</label>
-            <input
-              type="text"
-              {...register("location.city")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">State</label>
-            <input
-              type="text"
-              {...register("location.state")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Country</label>
-            <input
-              type="text"
-              {...register("location.country")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Postal Code</label>
-            <input
-              type="text"
-              {...register("location.postalCode")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-        </div>
-
-        {/* Profile Photo */}
-        <div>
-          <label className="block mb-1 font-medium">Profile Photo URL</label>
-          <input
-            type="text"
-            {...register("photo.profilePhoto")}
-            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-          />
-        </div>
-
-        {/* Emergency Contact */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block mb-1 font-medium">Emergency Name</label>
-            <input
-              type="text"
-              {...register("emergencyContact.name")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Emergency Phone</label>
-            <input
-              type="text"
-              {...register("emergencyContact.phone")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Relationship</label>
-            <input
-              type="text"
-              {...register("emergencyContact.relationship")}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300"
-            />
-          </div>
-        </div>
-
-        {/* Role (readonly) */}
-        <div>
-          <label className="block mb-1 font-medium">Role</label>
-          <input
-            type="text"
-            {...register("role")}
-            className="w-full border rounded-lg px-3 py-2 bg-gray-100 dark:bg-gray-800"
-            readOnly
-          />
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg transition"
-        >
-          {isSubmitting ? "Updating..." : "Update Profile"}
-        </button>
-      </form>
+        </form>
+      </div>
     </motion.div>
   );
 }

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const { post } = require("../router/user.router");
 
 // Constants
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -106,29 +107,66 @@ const userSchema = new mongoose.Schema(
     // Location Information
     location: {
       presentAddress: {
-        type: String,
-        trim: true,
+        country: {
+          type: String,
+          trim: true,
+          default: "Bangladesh",
+        },
+        district: {
+          type: String,
+          trim: true,
+        },
+        upozilla: {
+          type: String,
+          trim: true,
+        },
+        union: {
+          type: String,
+          trim: true,
+        },
+        street: {
+          type: String,
+          trim: true,
+        },
+        houseNumber: {
+          type: String,
+          trim: true,
+        },
+        postalCode: {
+          type: String,
+          trim: true,
+        },
       },
       permanentAddress: {
-        type: String,
-        trim: true,
-      },
-      city: {
-        type: String,
-        trim: true,
-      },
-      state: {
-        type: String,
-        trim: true,
-      },
-      country: {
-        type: String,
-        trim: true,
-        default: "Bangladesh",
-      },
-      postalCode: {
-        type: String,
-        trim: true,
+        country: {
+          type: String,
+          trim: true,
+          default: "Bangladesh",
+        },
+        district: {
+          type: String,
+          trim: true,
+        },
+        upozilla: {
+          type: String,
+          trim: true,
+        },
+        union: {
+          type: String,
+          trim: true,
+        },
+        street: {
+          type: String,
+          trim: true,
+        },
+        houseNumber: {
+          type: String,
+          trim: true,
+        },
+        postalCode: {
+          type: String,
+          trim: true,
+        },
       },
     },
 
@@ -366,5 +404,58 @@ userSchema.methods.updateLastDonation = async function (donationData) {
 
   return this.save();
 };
+
+// Pre 'findOneAndUpdate' middleware to recalculate age and eligibility
+userSchema.pre("findOneAndUpdate", async function (next) {
+  try {
+    const update = this.getUpdate();
+    if (!update) return next();
+
+    // If dateOfBirth is being updated, recalculate age
+    if (update.dateOfBirth) {
+      const today = new Date();
+      const dob = new Date(update.dateOfBirth);
+      let age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && today.getDate() < dob.getDate())
+      ) {
+        age--;
+      }
+      update.age = age;
+    }
+
+    // If relevant fields are updated, recalculate eligibility and next donation date
+    const fieldsToCheck = [
+      "lastDonationDate",
+      "gender",
+      "willingToDonate",
+      "weight",
+      "age",
+    ];
+    const shouldRecheck = fieldsToCheck.some(
+      (field) => update[field] !== undefined
+    );
+    if (shouldRecheck) {
+      // Get the current document
+      const docToUpdate = await this.model.findOne(this.getQuery());
+      if (docToUpdate) {
+        // Apply updates to a clone
+        const updatedDoc = docToUpdate.toObject();
+        Object.assign(updatedDoc, update);
+        // Recalculate nextDonationDate and isEligible
+        // Use schema methods
+        const tempUser = new this.model(updatedDoc);
+        tempUser.calculateNextDonationDate();
+        update.nextDonationDate = tempUser.nextDonationDate;
+        update.isEligible = tempUser.checkEligibility();
+      }
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = mongoose.model("User", userSchema);

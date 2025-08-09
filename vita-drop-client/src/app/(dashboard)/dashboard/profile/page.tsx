@@ -1,9 +1,21 @@
 "use client";
 import axiosSecure from "@/lib/axiosSecure";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
+import { formatDistance } from "date-fns";
+import {
+  FiMail,
+  FiPhone,
+  FiMapPin,
+  FiDroplet,
+  FiCalendar,
+  FiCamera,
+  FiCheck,
+  FiUser,
+} from "react-icons/fi";
+import { uploadImage } from "@/lib/uploadImage";
 
 interface User {
   _id: string;
@@ -113,23 +125,26 @@ export default function ProfilePage() {
       return;
     }
     try {
+      console.log("Uploading file:", selectedFile);
       setUploading(true);
       setUploadError(null);
-      const form = new FormData();
-      form.append("profilePhoto", selectedFile);
-      // Assumption: server accepts multipart/form-data at this endpoint and returns updated user or url
-      const res = await axiosSecure.post("/upload", form, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const data = await uploadImage(selectedFile);
+
+      const res = await axiosSecure.put(`/users/profile/${user?._id}`, {
+        photo: { ...user?.photo, profilePhoto: data?.url },
       });
-      const newUrl = res.data?.user?.photo?.profilePhoto || res.data?.url;
+
+      console.log("Upload response:", res);
+
+      const newUrl = data?.user?.photo?.profilePhoto || data?.url;
       if (newUrl) {
         setUser((prev) =>
           prev
             ? { ...prev, photo: { ...prev.photo, profilePhoto: newUrl } }
             : prev
         );
-      } else if (res.data?.user) {
-        setUser(res.data.user);
+      } else if (res?.data?.user) {
+        setUser(res?.data?.user);
       }
       closeUploadModal();
     } catch (err: unknown) {
@@ -175,21 +190,23 @@ export default function ProfilePage() {
     try {
       setCoverUploading(true);
       setCoverUploadError(null);
-      const form = new FormData();
-      form.append("coverPhoto", selectedCoverFile);
+
       // Reuse the same upload endpoint; backend should detect the field name
-      const res = await axiosSecure.post("/upload", form, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const res = await uploadImage(selectedCoverFile);
+      const newUrl = res?.url;
+      console.log("Cover upload response:", res);
+      const newData = await axiosSecure.put(`/users/profile/${user?._id}`, {
+        photo: { ...user?.photo, coverPhoto: newUrl },
       });
-      const newUrl = res.data?.user?.photo?.coverPhoto || res.data?.url;
+      console.log("Cover upload response:", newData);
       if (newUrl) {
         setUser((prev) =>
           prev
             ? { ...prev, photo: { ...prev.photo, coverPhoto: newUrl } }
             : prev
         );
-      } else if (res.data?.user) {
-        setUser(res.data.user);
+      } else if (newData?.data?.user) {
+        setUser(newData?.data?.user);
       }
       closeCoverUploadModal();
     } catch (err: unknown) {
@@ -214,15 +231,15 @@ export default function ProfilePage() {
 
   return (
     <motion.div
-      className="max-w-2xl mx-auto mt-8 bg-base-100 rounded-xl shadow-lg border overflow-hidden"
+      className="bg-base-100"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Facebook-style cover photo */}
+      {/* Cover banner */}
       <div className="relative w-full h-40 md:h-56 bg-gradient-to-r from-primary/70 to-secondary/70">
         <Image
-          src={user?.photo?.coverPhoto || "/default-cover.jpg"}
+          src={user?.photo?.coverPhoto || "https://i.pravatar.cc/12000"}
           alt="Cover Photo"
           fill
           className="object-cover w-full h-full"
@@ -236,331 +253,414 @@ export default function ProfilePage() {
           onClick={openCoverUploadModal}
           className="absolute bottom-3 right-3 z-20 inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary text-white shadow-md hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/70"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="w-5 h-5"
-          >
-            <path d="M9 3a1 1 0 0 0-.894.553L7.382 5H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3h-2.382l-.724-1.447A1 1 0 0 0 14 3H9zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 .002 6.002A3 3 0 0 0 12 10z" />
-          </svg>
+          <FiCamera className="w-5 h-5" />
         </button>
-        {/* Update Profile Button */}
-        <Link
-          href={`/dashboard/profile/${user?._id}`}
-          className="absolute top-3 right-3 bg-primary text-white px-4 py-1.5 rounded-lg shadow hover:bg-primary-dark transition z-10 text-sm font-medium"
-        >
-          Update Profile
-        </Link>
-        {/* Profile image, overlapping cover */}
-        <div className="absolute left-1/2 -bottom-12 -translate-x-1/2 z-20 flex flex-col items-center">
-          <div className="relative group">
-            <Image
-              src={user?.photo?.profilePhoto || "https://i.pravatar.cc/120"}
-              alt="Profile"
-              width={120}
-              height={120}
-              className="rounded-full border-4 border-white dark:border-gray-900 shadow-lg object-cover w-32 h-32 bg-gray-100"
-              priority
-            />
-            {/* Camera button like Facebook */}
-            <button
-              type="button"
-              aria-label="Change profile photo"
-              onClick={openUploadModal}
-              className="absolute bottom-1 right-1 inline-flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white shadow-md hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/70"
-            >
-              {/* camera icon */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="w-5 h-5"
-              >
-                <path d="M9 3a1 1 0 0 0-.894.553L7.382 5H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3h-2.382l-.724-1.447A1 1 0 0 0 14 3H9zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 .002 6.002A3 3 0 0 0 12 10z" />
-              </svg>
-            </button>
-          </div>
-        </div>
       </div>
-      {/* Main card content */}
-      <div className="pt-16 pb-4 px-4 md:px-8 flex flex-col items-center bg-gradient-to-b from-primary/5 via-white to-secondary/5">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-1 text-center">
-          {user?.fullName}
-        </h2>
-        <span className="text-sm text-primary font-semibold mb-2">
-          {user?.role || "-"}
-        </span>
-        <span className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-          Joined{" "}
-          {user?.createdAt
-            ? new Date(user.createdAt).toLocaleDateString()
-            : "-"}
-        </span>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-6">
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Email:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.email}
+
+      {/* Main content */}
+      <div className="mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Left: Profile card */}
+          <div className="md:col-span-4">
+            <div className="card bg-base-100 shadow-xl border md:sticky md:top-20">
+              <div className="card-body">
+                <div className="flex items-start gap-4">
+                  <div className="relative shrink-0">
+                    <div className="avatar">
+                      <div className="w-28 h-28 rounded-full ring ring-primary ring-offset-2 ring-offset-base-100 overflow-hidden">
+                        <Image
+                          src={
+                            user?.photo?.profilePhoto ||
+                            "https://i.pravatar.cc/120"
+                          }
+                          alt="Profile photo"
+                          width={112}
+                          height={112}
+                          className="object-cover w-28 h-28"
+                          priority
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Change profile photo"
+                      onClick={openUploadModal}
+                      className="absolute -bottom-2 -right-2 inline-flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white shadow-md hover:brightness-105"
+                    >
+                      <FiCamera className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="card-title leading-tight break-words">
+                      {user?.fullName || "User"}
+                    </h2>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                      <span className="badge badge-outline badge-primary">
+                        {user?.role || "Member"}
+                      </span>
+                      <span className="text-xs opacity-70">
+                        Joined{" "}
+                        {user?.createdAt
+                          ? formatDistance(
+                              new Date(user.createdAt),
+                              new Date(),
+                              { addSuffix: true }
+                            )
+                          : "-"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact */}
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <FiMail className="text-primary" />
+                    <span className="truncate">{user?.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <FiPhone className="text-primary" />
+                    <span>{user?.phone || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <FiMapPin className="text-primary" />
+                    <span className="truncate">
+                      {user?.location?.city || ""}
+                      {user?.location?.city &&
+                        (user?.location?.country ? ", " : "")}
+                      {user?.location?.country || ""}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="mt-4 stats stats-vertical shadow-sm w-full">
+                  <div className="stat">
+                    <div className="stat-figure text-primary">
+                      <FiDroplet />
+                    </div>
+                    <div className="stat-title">Donations</div>
+                    <div className="stat-value text-primary">
+                      {user?.numberOfDonations ?? 0}
+                    </div>
+                  </div>
+                  <div className="stat">
+                    <div className="stat-figure text-primary">
+                      <FiCalendar />
+                    </div>
+                    <div className="stat-title">Next Donation</div>
+                    <div className="stat-desc">
+                      {user?.nextDonationDate
+                        ? new Date(user.nextDonationDate).toLocaleDateString()
+                        : "-"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href={`/dashboard/profile/${user?._id}`}
+                    className="btn btn-primary btn-sm"
+                  >
+                    Edit Profile
+                  </Link>
+                  <span
+                    className={`badge ${
+                      user?.isAvailable ? "badge-success" : "badge-neutral"
+                    }`}
+                  >
+                    {user?.isAvailable
+                      ? "Available to Donate"
+                      : "Not Available"}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Phone:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.phone || "-"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Gender:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.gender || "-"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Date of Birth:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.dateOfBirth
-                ? new Date(user.dateOfBirth).toLocaleDateString()
-                : "-"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Age:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.age ?? "-"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Blood Group:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.bloodGroup || "-"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Weight (kg):
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.weight ?? "-"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Available to Donate:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.isAvailable ? "Yes" : "No"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Willing to Donate:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.willingToDonate ? "Yes" : "No"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Eligible:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.isEligible ? "Yes" : "No"}
-            </div>
-          </div>
-          <div>
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Number of Donations:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.numberOfDonations ?? 0}
-            </div>
-          </div>
-          <div className="md:col-span-2">
-            <div className="font-medium text-gray-700 dark:text-gray-200">
-              Next Donation Date:
-            </div>
-            <div className="text-gray-600 dark:text-gray-300">
-              {user?.nextDonationDate
-                ? new Date(user.nextDonationDate).toLocaleDateString()
-                : "-"}
-            </div>
-          </div>
-        </div>
-        {/* Location */}
-        <div className="mb-6 w-full">
-          <div className="font-medium text-primary mb-1">Location</div>
-          <div className="text-gray-600 dark:text-gray-300 text-sm flex flex-wrap gap-x-4 gap-y-1">
-            {user?.location?.presentAddress && (
-              <div>
-                Present:{" "}
-                <span className="font-medium">
-                  {user.location.presentAddress}
-                </span>
+
+          {/* Right: Details */}
+          <div className="md:col-span-8">
+            <div className="grid grid-cols-1 gap-6">
+              {/* Personal Information */}
+              <div className="card bg-base-100 shadow-xl border">
+                <div className="card-body">
+                  <h3 className="card-title">
+                    <FiUser />
+                    Personal Information
+                  </h3>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Gender:</span>
+                      <span>{user?.gender || "-"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Date of Birth:</span>
+                      <span>
+                        {user?.dateOfBirth
+                          ? new Date(user.dateOfBirth).toLocaleDateString()
+                          : "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Age:</span>
+                      <span>{user?.age ?? "-"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Blood Group:</span>
+                      <span className="badge badge-outline">
+                        {user?.bloodGroup || "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Weight (kg):</span>
+                      <span>{user?.weight ?? "-"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Willing to Donate:</span>
+                      <span
+                        className={`badge ${
+                          user?.willingToDonate
+                            ? "badge-success"
+                            : "badge-neutral"
+                        }`}
+                      >
+                        {user?.willingToDonate ? "Yes" : "No"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Eligible:</span>
+                      <span
+                        className={`badge ${
+                          user?.isEligible ? "badge-success" : "badge-neutral"
+                        }`}
+                      >
+                        {user?.isEligible ? "Yes" : "No"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-            {user?.location?.permanentAddress && (
-              <div>
-                Permanent:{" "}
-                <span className="font-medium">
-                  {user.location.permanentAddress}
-                </span>
+
+              {/* Location */}
+              <div className="card bg-base-100 shadow-xl border">
+                <div className="card-body">
+                  <h3 className="card-title">
+                    <FiMapPin />
+                    Location
+                  </h3>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+                    {/* Present Address */}
+                    <div>
+                      <span className="font-medium block mb-1">
+                        Present Address:
+                      </span>
+                      <div className="space-y-1">
+                        <div>
+                          <span className="font-semibold">Country:</span>{" "}
+                          {user?.location?.presentAddress?.country || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">District:</span>{" "}
+                          {user?.location?.presentAddress?.district || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Upozilla:</span>{" "}
+                          {user?.location?.presentAddress?.upozilla || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Union:</span>{" "}
+                          {user?.location?.presentAddress?.union || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Street:</span>{" "}
+                          {user?.location?.presentAddress?.street || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">House No.:</span>{" "}
+                          {user?.location?.presentAddress?.houseNumber || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Postal Code:</span>{" "}
+                          {user?.location?.presentAddress?.postalCode || "-"}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Permanent Address */}
+                    <div>
+                      <span className="font-medium block mb-1">
+                        Permanent Address:
+                      </span>
+                      <div className="space-y-1">
+                        <div>
+                          <span className="font-semibold">Country:</span>{" "}
+                          {user?.location?.permanentAddress?.country || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">District:</span>{" "}
+                          {user?.location?.permanentAddress?.district || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Upozilla:</span>{" "}
+                          {user?.location?.permanentAddress?.upozilla || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Union:</span>{" "}
+                          {user?.location?.permanentAddress?.union || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Street:</span>{" "}
+                          {user?.location?.permanentAddress?.street || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">House No.:</span>{" "}
+                          {user?.location?.permanentAddress?.houseNumber || "-"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Postal Code:</span>{" "}
+                          {user?.location?.permanentAddress?.postalCode || "-"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-            {user?.location?.city && (
-              <div>
-                City: <span className="font-medium">{user.location.city}</span>
+
+              {/* Emergency Contact */}
+              <div className="card bg-base-100 shadow-xl border">
+                <div className="card-body">
+                  <h3 className="card-title">
+                    <FiPhone />
+                    Emergency Contact
+                  </h3>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    {user?.emergencyContact?.name && (
+                      <div>
+                        <span className="font-medium">Name:</span>{" "}
+                        {user.emergencyContact.name}
+                      </div>
+                    )}
+                    {user?.emergencyContact?.phone && (
+                      <div>
+                        <span className="font-medium">Phone:</span>{" "}
+                        {user.emergencyContact.phone}
+                      </div>
+                    )}
+                    {user?.emergencyContact?.relationship && (
+                      <div>
+                        <span className="font-medium">Relationship:</span>{" "}
+                        {user.emergencyContact.relationship}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-            {user?.location?.state && (
-              <div>
-                State:{" "}
-                <span className="font-medium">{user.location.state}</span>
+
+              {/* Last Donation */}
+              <div className="card bg-base-100 shadow-xl border">
+                <div className="card-body">
+                  <h3 className="card-title">
+                    <FiDroplet />
+                    Last Donation
+                  </h3>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    {user?.lastDonationDate?.date && (
+                      <div>
+                        <span className="font-medium">Date:</span>{" "}
+                        {new Date(
+                          user.lastDonationDate.date
+                        ).toLocaleDateString()}
+                      </div>
+                    )}
+                    {user?.lastDonationDate?.place && (
+                      <div>
+                        <span className="font-medium">Place:</span>{" "}
+                        {user.lastDonationDate.place}
+                      </div>
+                    )}
+                    {user?.lastDonationDate?.bloodGroup && (
+                      <div>
+                        <span className="font-medium">Blood Group:</span>{" "}
+                        {user.lastDonationDate.bloodGroup}
+                      </div>
+                    )}
+                    {user?.lastDonationDate?.verificationDocument && (
+                      <div className="truncate">
+                        <span className="font-medium">Verification:</span>{" "}
+                        {user.lastDonationDate.verificationDocument}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-            {user?.location?.country && (
-              <div>
-                Country:{" "}
-                <span className="font-medium">{user.location.country}</span>
+
+              {/* Account Status */}
+              <div className="card bg-base-100 shadow-xl border">
+                <div className="card-body">
+                  <h3 className="card-title">
+                    <FiCheck />
+                    Account Status
+                  </h3>
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Active:</span>
+                      {user.isActive ? (
+                        <span className="badge badge-success">Yes</span>
+                      ) : (
+                        <span className="badge badge-neutral">No</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Email Verified:</span>
+                      {user.emailVerified ? (
+                        <span className="badge badge-success">Yes</span>
+                      ) : (
+                        <span className="badge badge-neutral">No</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Phone Verified:</span>
+                      {user.phoneVerified ? (
+                        <span className="badge badge-success">Yes</span>
+                      ) : (
+                        <span className="badge badge-neutral">No</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Accepted Terms:</span>
+                      {user.termsConditions ? (
+                        <span className="badge badge-success">Yes</span>
+                      ) : (
+                        <span className="badge badge-neutral">No</span>
+                      )}
+                    </div>
+                    {user.account?.ban && (
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Banned:</span>
+                        <span className="badge badge-error">Yes</span>
+                      </div>
+                    )}
+                    {user.account?.suspended && (
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Suspended:</span>
+                        <span className="badge badge-warning">Yes</span>
+                      </div>
+                    )}
+                    {user.account?.deactivated && (
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Deactivated:</span>
+                        <span className="badge badge-neutral">Yes</span>
+                      </div>
+                    )}
+                    {user.account?.reason && (
+                      <div className="sm:col-span-2">
+                        <span className="font-medium">Reason:</span>{" "}
+                        {user.account.reason}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-            {user?.location?.postalCode && (
-              <div>
-                Postal Code:{" "}
-                <span className="font-medium">{user.location.postalCode}</span>
-              </div>
-            )}
-          </div>
-        </div>
-        {/* Emergency Contact */}
-        <div className="mb-6 w-full">
-          <div className="font-medium text-primary mb-1">Emergency Contact</div>
-          <div className="text-gray-600 dark:text-gray-300 text-sm flex flex-wrap gap-x-4 gap-y-1">
-            {user?.emergencyContact?.name && (
-              <div>
-                Name:{" "}
-                <span className="font-medium">
-                  {user.emergencyContact.name}
-                </span>
-              </div>
-            )}
-            {user?.emergencyContact?.phone && (
-              <div>
-                Phone:{" "}
-                <span className="font-medium">
-                  {user.emergencyContact.phone}
-                </span>
-              </div>
-            )}
-            {user?.emergencyContact?.relationship && (
-              <div>
-                Relationship:{" "}
-                <span className="font-medium">
-                  {user.emergencyContact.relationship}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        {/* Last Donation */}
-        <div className="mb-6 w-full">
-          <div className="font-medium text-primary mb-1">Last Donation</div>
-          <div className="text-gray-600 dark:text-gray-300 text-sm flex flex-wrap gap-x-4 gap-y-1">
-            {user?.lastDonationDate?.date && (
-              <div>
-                Date:{" "}
-                <span className="font-medium">
-                  {new Date(user.lastDonationDate.date).toLocaleDateString()}
-                </span>
-              </div>
-            )}
-            {user?.lastDonationDate?.place && (
-              <div>
-                Place:{" "}
-                <span className="font-medium">
-                  {user.lastDonationDate.place}
-                </span>
-              </div>
-            )}
-            {user?.lastDonationDate?.bloodGroup && (
-              <div>
-                Blood Group:{" "}
-                <span className="font-medium">
-                  {user.lastDonationDate.bloodGroup}
-                </span>
-              </div>
-            )}
-            {user?.lastDonationDate?.verificationDocument && (
-              <div>
-                Verification:{" "}
-                <span className="font-medium">
-                  {user.lastDonationDate.verificationDocument}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        {/* Account Status */}
-        <div className="mb-2 w-full">
-          <div className="font-medium text-primary mb-1">Account Status</div>
-          <div className="text-gray-600 dark:text-gray-300 text-sm flex flex-wrap gap-x-4 gap-y-1">
-            <div>
-              Active:{" "}
-              <span className="font-medium">
-                {user.isActive ? "Yes" : "No"}
-              </span>
             </div>
-            <div>
-              Email Verified:{" "}
-              <span className="font-medium">
-                {user.emailVerified ? "Yes" : "No"}
-              </span>
-            </div>
-            <div>
-              Phone Verified:{" "}
-              <span className="font-medium">
-                {user.phoneVerified ? "Yes" : "No"}
-              </span>
-            </div>
-            <div>
-              Accepted Terms:{" "}
-              <span className="font-medium">
-                {user.termsConditions ? "Yes" : "No"}
-              </span>
-            </div>
-            {user.account?.ban && (
-              <div>
-                Banned: <span className="font-medium">Yes</span>
-              </div>
-            )}
-            {user.account?.suspended && (
-              <div>
-                Suspended: <span className="font-medium">Yes</span>
-              </div>
-            )}
-            {user.account?.deactivated && (
-              <div>
-                Deactivated: <span className="font-medium">Yes</span>
-              </div>
-            )}
-            {user.account?.reason && (
-              <div>
-                Reason:{" "}
-                <span className="font-medium">{user.account.reason}</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -625,7 +725,7 @@ export default function ProfilePage() {
             className="absolute inset-0 bg-black/50"
             onClick={closeCoverUploadModal}
           />
-          <div className="relative z-10 w-11/12 max-w-3xl rounded-xl bg-base-100 shadow-xl border p-5">
+          <div className="relative z-10 w-11/12 max-w-3xl max-h-screen rounded-xl bg-base-100 shadow-xl border p-5 overflow-scroll">
             <h3 className="text-lg font-semibold mb-3">Update Cover Photo</h3>
             <div className="space-y-4">
               <div className="relative w-full aspect-[16/9] overflow-hidden rounded-lg border">
