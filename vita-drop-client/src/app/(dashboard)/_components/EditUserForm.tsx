@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
 import { motion } from "motion/react";
-import { FiUser, FiMapPin, FiDroplet, FiShield, FiImage } from "react-icons/fi";
+import { FiUser, FiMapPin, FiDroplet, FiShield } from "react-icons/fi";
 
 // Demo data for dropdowns
 const demoDistricts = ["Dhaka", "Chattogram", "Khulna"];
@@ -106,7 +106,7 @@ export default function EditUserForm({ id }: EditUserFormProps) {
   const present = watch("location.presentAddress");
   useEffect(() => {
     if (sameAddress && present) {
-      for (const key of [
+      const keys = [
         "country",
         "district",
         "upozilla",
@@ -114,9 +114,13 @@ export default function EditUserForm({ id }: EditUserFormProps) {
         "street",
         "houseNumber",
         "postalCode",
-      ]) {
-        setValue(`location.permanentAddress.${key}`, present[key] || "");
-      }
+      ] as const;
+      keys.forEach((key) => {
+        setValue(
+          `location.permanentAddress.${key}` as const,
+          present?.[key] || ""
+        );
+      });
     }
   }, [sameAddress, present, setValue]);
 
@@ -140,7 +144,11 @@ export default function EditUserForm({ id }: EditUserFormProps) {
       }
     } catch (error) {
       console.error("Update error:", error);
-      Swal.fire("Error", error.message || "Something went wrong", "error");
+      Swal.fire(
+        "Error",
+        error instanceof Error ? error.message : "Something went wrong",
+        "error"
+      );
     }
   };
 
