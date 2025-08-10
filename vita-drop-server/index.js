@@ -14,6 +14,7 @@ app.use(
       "http://localhost:3000",
       "https://vita-drop.vercel.app",
       "http://localhost:4000",
+      "https://vita-drop-server.vercel.app",
     ],
     credentials: true,
   })
