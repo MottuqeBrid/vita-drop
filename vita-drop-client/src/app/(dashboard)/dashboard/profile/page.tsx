@@ -39,8 +39,24 @@ interface User {
   numberOfDonations?: number;
   nextDonationDate?: string;
   location?: {
-    presentAddress?: string;
-    permanentAddress?: string;
+    presentAddress?: {
+      country?: string;
+      district?: string;
+      upozilla?: string;
+      union?: string;
+      street?: string;
+      houseNumber?: string;
+      postalCode?: string;
+    };
+    permanentAddress?: {
+      country?: string;
+      district?: string;
+      upozilla?: string;
+      union?: string;
+      street?: string;
+      houseNumber?: string;
+      postalCode?: string;
+    };
     city?: string;
     state?: string;
     country?: string;
