@@ -12,6 +12,7 @@ const { verifyToken } = require("../middlewares/token.middlewares");
 router.post("/register", async (req, res) => {
   try {
     const { email } = req.body;
+    console.log("Registering user with email:", email);
     const existingUser = await userSchema.findOne({ email });
     if (existingUser) {
       return res
@@ -121,6 +122,18 @@ router.post("/logout", verifyToken, async (req, res) => {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     res.status(200).json({ success: true, message: "Logout successful" });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+// get all users
+router.get("/all", verifyToken, async (req, res) => {
+  try {
+    const users = await userSchema
+      .find()
+      .select("-password -__v -otp -isActive");
+    res.status(200).json({ success: true, users });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
   }
