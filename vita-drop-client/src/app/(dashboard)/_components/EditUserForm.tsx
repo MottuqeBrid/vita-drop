@@ -7,11 +7,6 @@ import Swal from "sweetalert2";
 import { motion } from "motion/react";
 import { FiUser, FiMapPin, FiDroplet, FiShield } from "react-icons/fi";
 
-// Demo data for dropdowns
-const demoDistricts = ["Dhaka", "Chattogram", "Khulna"];
-const demoUpozillas = ["Savar", "Patiya", "Dumuria"];
-const demoUnions = ["Union 1", "Union 2", "Union 3"];
-
 interface EditUserFormProps {
   id: string;
 }
@@ -31,6 +26,7 @@ type FormValues = {
   location?: {
     presentAddress?: {
       country?: string;
+      division?: string;
       district?: string;
       upozilla?: string;
       union?: string;
@@ -40,6 +36,7 @@ type FormValues = {
     };
     permanentAddress?: {
       country?: string;
+      division?: string;
       district?: string;
       upozilla?: string;
       union?: string;
@@ -75,6 +72,21 @@ type ApiUser = FormValues & {
 export default function EditUserForm({ id }: EditUserFormProps) {
   const [loading, setLoading] = useState(true);
   const [sameAddress, setSameAddress] = useState(false);
+  // Address dropdown types
+  interface AddressOption {
+    id: string;
+    name: string;
+    bn_name?: string;
+  }
+  const [demoDivisions, setDemoDivisions] = useState<AddressOption[]>([]);
+  const [demoDistricts, setDemoDistricts] = useState<AddressOption[]>([]);
+  const [demoUpozillas, setDemoUpozillas] = useState<AddressOption[]>([]);
+  const [demoUnions, setDemoUnions] = useState<AddressOption[]>([]);
+  // Permanent address dropdowns
+  const [permDivisions, setPermDivisions] = useState<AddressOption[]>([]);
+  const [permDistricts, setPermDistricts] = useState<AddressOption[]>([]);
+  const [permUpozillas, setPermUpozillas] = useState<AddressOption[]>([]);
+  const [permUnions, setPermUnions] = useState<AddressOption[]>([]);
 
   const {
     register,
@@ -104,6 +116,7 @@ export default function EditUserForm({ id }: EditUserFormProps) {
 
   // Sync permanent address with present address if checkbox is checked
   const present = watch("location.presentAddress");
+  const permanent = watch("location.permanentAddress");
   useEffect(() => {
     if (sameAddress && present) {
       const keys = [
@@ -123,6 +136,117 @@ export default function EditUserForm({ id }: EditUserFormProps) {
       });
     }
   }, [sameAddress, present, setValue]);
+
+  // Fetch divisions for both present and permanent address
+  useEffect(() => {
+    const getDivisions = async () => {
+      const res = await fetch("https://bdapi.vercel.app/api/v.1/division");
+      const data = await res.json();
+      setDemoDivisions(data?.data || []);
+      setPermDivisions(data?.data || []);
+    };
+    getDivisions();
+  }, []);
+  // Present address: districts
+  useEffect(() => {
+    const getDistricts = async () => {
+      if (demoDivisions.length === 0) return;
+      const selectedDivision = demoDivisions.find(
+        (div) => div?.name === present?.division
+      );
+      if (!selectedDivision) return setDemoDistricts([]);
+      const res = await fetch(
+        `https://bdapi.vercel.app/api/v.1/district/${selectedDivision?.id}`
+      );
+      const data = await res.json();
+      setDemoDistricts(data?.data || []);
+    };
+    getDistricts();
+  }, [demoDivisions, present?.division]);
+
+  // Permanent address: districts
+  useEffect(() => {
+    const getDistricts = async () => {
+      if (permDivisions.length === 0) return;
+      const selectedDivision = permDivisions.find(
+        (div) => div?.name === permanent?.division
+      );
+      if (!selectedDivision) return setPermDistricts([]);
+      const res = await fetch(
+        `https://bdapi.vercel.app/api/v.1/district/${selectedDivision?.id}`
+      );
+      const data = await res.json();
+      setPermDistricts(data?.data || []);
+    };
+    if (!sameAddress) getDistricts();
+  }, [permDivisions, permanent?.division, sameAddress]);
+  // Present address: upozillas
+  useEffect(() => {
+    if (demoDistricts.length === 0) return;
+    const selectedDistrict = demoDistricts.find(
+      (dist) => dist?.name === present?.district
+    );
+    const getUpozillas = async () => {
+      if (!selectedDistrict) return setDemoUpozillas([]);
+      const res = await fetch(
+        `https://bdapi.vercel.app/api/v.1/upazilla/${selectedDistrict?.id}`
+      );
+      const data = await res.json();
+      setDemoUpozillas(data?.data || []);
+    };
+    getUpozillas();
+  }, [demoDistricts, present?.district]);
+
+  // Permanent address: upozillas
+  useEffect(() => {
+    if (permDistricts.length === 0) return;
+    const selectedDistrict = permDistricts.find(
+      (dist) => dist?.name === permanent?.district
+    );
+    const getUpozillas = async () => {
+      if (!selectedDistrict) return setPermUpozillas([]);
+      const res = await fetch(
+        `https://bdapi.vercel.app/api/v.1/upazilla/${selectedDistrict?.id}`
+      );
+      const data = await res.json();
+      setPermUpozillas(data?.data || []);
+    };
+    if (!sameAddress) getUpozillas();
+  }, [permDistricts, permanent?.district, sameAddress]);
+
+  // Present address: unions
+  useEffect(() => {
+    const getUnions = async () => {
+      if (demoUpozillas.length === 0) return;
+      const selectedUpozilla = demoUpozillas.find(
+        (up) => up?.name === present?.upozilla
+      );
+      if (!selectedUpozilla) return setDemoUnions([]);
+      const res = await fetch(
+        `https://bdapi.vercel.app/api/v.1/union/${selectedUpozilla?.id}`
+      );
+      const data = await res.json();
+      setDemoUnions(data?.data || []);
+    };
+    getUnions();
+  }, [demoUpozillas, present?.upozilla]);
+
+  // Permanent address: unions
+  useEffect(() => {
+    const getUnions = async () => {
+      if (permUpozillas.length === 0) return;
+      const selectedUpozilla = permUpozillas.find(
+        (up) => up?.name === permanent?.upozilla
+      );
+      if (!selectedUpozilla) return setPermUnions([]);
+      const res = await fetch(
+        `https://bdapi.vercel.app/api/v.1/union/${selectedUpozilla?.id}`
+      );
+      const data = await res.json();
+      setPermUnions(data?.data || []);
+    };
+    if (!sameAddress) getUnions();
+  }, [permUpozillas, permanent?.upozilla, sameAddress]);
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -327,6 +451,23 @@ export default function EditUserForm({ id }: EditUserFormProps) {
                 </div>
                 <div className="form-control md:col-span-1">
                   <label className="label">
+                    <span className="label-text">Division</span>
+                  </label>
+                  <select
+                    {...register("location.presentAddress.division")}
+                    className="select select-bordered w-full"
+                  >
+                    <option value="">Select</option>
+                    {demoDivisions &&
+                      demoDivisions.map((div) => (
+                        <option key={div?.id} value={div?.name}>
+                          {div?.bn_name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
                     <span className="label-text">District</span>
                   </label>
                   <select
@@ -334,11 +475,12 @@ export default function EditUserForm({ id }: EditUserFormProps) {
                     className="select select-bordered w-full"
                   >
                     <option value="">Select</option>
-                    {demoDistricts.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
+                    {demoDistricts &&
+                      demoDistricts.map((dis) => (
+                        <option key={dis?.id} value={dis?.name}>
+                          {dis?.bn_name}
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div className="form-control md:col-span-1">
@@ -351,8 +493,8 @@ export default function EditUserForm({ id }: EditUserFormProps) {
                   >
                     <option value="">Select</option>
                     {demoUpozillas.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
+                      <option key={u.id} value={u.name}>
+                        {u.bn_name}
                       </option>
                     ))}
                   </select>
@@ -367,8 +509,8 @@ export default function EditUserForm({ id }: EditUserFormProps) {
                   >
                     <option value="">Select</option>
                     {demoUnions.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
+                      <option key={u.id} value={u.name}>
+                        {u.bn_name}
                       </option>
                     ))}
                   </select>
@@ -424,6 +566,23 @@ export default function EditUserForm({ id }: EditUserFormProps) {
                 </div>
                 <div className="form-control md:col-span-1">
                   <label className="label">
+                    <span className="label-text">Division</span>
+                  </label>
+                  <select
+                    {...register("location.permanentAddress.division")}
+                    className="select select-bordered w-full"
+                    disabled={sameAddress}
+                  >
+                    <option value="">Select</option>
+                    {permDivisions.map((d) => (
+                      <option key={d?.id} value={d?.name}>
+                        {d?.bn_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-control md:col-span-1">
+                  <label className="label">
                     <span className="label-text">District</span>
                   </label>
                   <select
@@ -432,9 +591,9 @@ export default function EditUserForm({ id }: EditUserFormProps) {
                     disabled={sameAddress}
                   >
                     <option value="">Select</option>
-                    {demoDistricts.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
+                    {permDistricts.map((d) => (
+                      <option key={d?.id} value={d?.name}>
+                        {d?.bn_name}
                       </option>
                     ))}
                   </select>
@@ -449,9 +608,9 @@ export default function EditUserForm({ id }: EditUserFormProps) {
                     disabled={sameAddress}
                   >
                     <option value="">Select</option>
-                    {demoUpozillas.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
+                    {permUpozillas.map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.bn_name}
                       </option>
                     ))}
                   </select>
@@ -466,9 +625,9 @@ export default function EditUserForm({ id }: EditUserFormProps) {
                     disabled={sameAddress}
                   >
                     <option value="">Select</option>
-                    {demoUnions.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
+                    {permUnions.map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.bn_name}
                       </option>
                     ))}
                   </select>

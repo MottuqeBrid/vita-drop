@@ -112,6 +112,10 @@ const userSchema = new mongoose.Schema(
           trim: true,
           default: "Bangladesh",
         },
+        division: {
+          type: String,
+          trim: true,
+        },
         district: {
           type: String,
           trim: true,
@@ -142,6 +146,10 @@ const userSchema = new mongoose.Schema(
           type: String,
           trim: true,
           default: "Bangladesh",
+        },
+        division: {
+          type: String,
+          trim: true,
         },
         district: {
           type: String,
