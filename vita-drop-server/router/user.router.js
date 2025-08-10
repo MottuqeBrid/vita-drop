@@ -128,7 +128,7 @@ router.post("/logout", verifyToken, async (req, res) => {
 });
 
 // get all users
-router.get("/all", verifyToken, async (req, res) => {
+router.get("/all", async (req, res) => {
   try {
     const users = await userSchema
       .find()
