@@ -6,6 +6,8 @@ import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
 import { motion } from "motion/react";
 import { FiUser, FiMapPin, FiDroplet, FiShield } from "react-icons/fi";
+import { useRouter } from "next/navigation";
+import { ro } from "date-fns/locale";
 
 interface EditUserFormProps {
   id: string;
@@ -72,6 +74,7 @@ type ApiUser = FormValues & {
 export default function EditUserForm({ id }: EditUserFormProps) {
   const [loading, setLoading] = useState(true);
   const [sameAddress, setSameAddress] = useState(false);
+  const router = useRouter();
   // Address dropdown types
   interface AddressOption {
     id: string;
@@ -263,6 +266,7 @@ export default function EditUserForm({ id }: EditUserFormProps) {
       const res = await axiosSecure.put(`/users/profile/${id}`, payload);
       if (res.data?.success) {
         Swal.fire("Success", "Profile updated successfully", "success");
+        router.push("/dashboard/profile");
       } else {
         Swal.fire("Error", res.data?.message || "Update failed", "error");
       }

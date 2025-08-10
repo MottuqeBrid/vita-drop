@@ -11,6 +11,7 @@ import {
   FaUsers,
   FaTint,
   FaUser,
+  FaDropbox,
 } from "react-icons/fa";
 import { BiLogOut } from "react-icons/bi";
 import Image from "next/image";
@@ -48,6 +49,11 @@ export default function DashboardNavbar() {
     { href: "/dashboard/users", label: "Users", icon: <FaUsers /> },
     { href: "/dashboard/donors", label: "Donors", icon: <FaTint /> },
     { href: "/dashboard/profile", label: "Profile", icon: <FaUser /> },
+    {
+      href: "/dashboard/blood-request",
+      label: "Blood Request",
+      icon: <FaDropbox />,
+    },
   ];
 
   return (
@@ -102,7 +108,7 @@ export default function DashboardNavbar() {
 
               {/* Side Drawer */}
               <motion.aside
-                className="fixed top-0 left-0 min-h-screen bg-base-300 w-72 max-w-full shadow-lg z-50 p-6 flex flex-col gap-6 overflow-y-scroll"
+                className="fixed top-0 left-0 min-h-screen bg-base-300 w-72 max-w-full shadow-lg z-50 p-6 flex flex-col gap-6"
                 initial={{ x: "-100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
@@ -138,7 +144,7 @@ export default function DashboardNavbar() {
                 </div>
 
                 {/* Navigation Links */}
-                <nav className="flex flex-col gap-2 font-medium ">
+                <nav className="flex flex-col gap-2 font-medium">
                   {navItems.map(({ href, label, icon }) => (
                     <Link
                       key={href}
